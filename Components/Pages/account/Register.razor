@@ -1,0 +1,78 @@
+﻿@page "/account/register/{ReturnUrl:alpha?}"
+@layout Layout.None
+@inject UserManager<User> userManager
+@attribute [AllowAnonymous]
+
+<EditForm Model="@Model" OnValidSubmit="Submit" class="container" FormName="login-form">
+    <DataAnnotationsValidator />
+    <h3>Register</h3>
+    <div class="form-text">@Error</div>
+    <div class="mb-3">
+        <label for="inputUserName" class="form-label">User Name</label>
+        <InputText DisplayName="User Name" @bind-Value="Model.UserName" class="form-control" />
+        <div id="userHelp" class="form-text"><ValidationMessage For="() => Model.UserName" /></div>
+    </div>
+    <div class="mb-3">
+        <label for="inputEmail" class="form-label">E-Mail</label>
+        <InputText DisplayName="User Name" @bind-Value="Model.Email" class="form-control" />
+        <div id="userHelp" class="form-text"><ValidationMessage For="() => Model.Email" /></div>
+    </div>
+    <div class="mb-3">
+        <label for="inputName" class="form-label">Name</label>
+        <InputText DisplayName="User Name" @bind-Value="Model.Name" class="form-control" />
+        <div id="userHelp" class="form-text"><ValidationMessage For="() => Model.Name" /></div>
+    </div>
+    <div class="mb-3">
+        <label for="inputPassword" class="form-label">Password</label>
+        <InputText type="password" DisplayName="Password" @bind-Value="Model.Password" class="form-control" />
+        <div id="userHelp" class="form-text"><ValidationMessage For="() => Model.Password" /></div>
+    </div>
+    <div class="mb-3">
+        <label for="inputConfirmPassword" class="form-label">Confirm password</label>
+        <InputText type="password" DisplayName="Password" @bind-Value="Model.ConfirmPassword" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public string ReturnUrl { get; set; } = String.Empty;
+
+    [SupplyParameterFromForm]
+    public RegisterUser Model { get; set; } = new();
+
+    public string Error { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        ReturnUrl ??= "/";
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            var user = new User
+                {
+                    Name = Model.Name,
+                    UserName = Model.UserName,
+                    Password = Model.Password,
+                    Email = Model.Email
+                };
+            if (Model.Password != Model.ConfirmPassword) throw new Exception("Passwords does not match");
+            var result = await userManager.CreateAsync(user, Model.Password);
+            if (result.Succeeded)
+            {
+                Error = "";
+                Navigation.NavigateFromPost($"login?ReturnUrl={ReturnUrl}");
+                return;
+            }
+            throw new Exception($"Unable to create the user. {result.Errors.Aggregate("", (str, error) => $"{str}{error.Description}\r\n")}");
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+}

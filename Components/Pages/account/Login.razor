@@ -1,0 +1,88 @@
+﻿@using Microsoft.AspNetCore.Authentication
+@using Microsoft.Extensions.Primitives
+
+@page "/account/login/{ReturnUrl:alpha?}"
+@layout Layout.None
+@inject SignInManager<User> signInManager
+@inject NavigationManager navigationManager
+@attribute [AllowAnonymous]
+
+@* <form method="post" class="container" @onsubmit="Submit" @formname="login-form">
+    <AntiforgeryToken />
+    <h3>Login</h3>
+    <div class="form-text">@Error</div>
+    <div class="mb-3">
+        <label for="userName" class="form-label">User Name</label>
+        <InputText DisplayName="User Name" @bind-Value="Model.UserName" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText type="password" DisplayName="Password" @bind-Value="Model.Password" class="form-control" />
+    </div>
+    <div class="mb-3 form-check">
+        <InputCheckbox class="form-check-input" for="rememberMe" @bind-Value="RememberMe" /><div class="form-check-label">Remember-me</div>
+    </div>
+    <button class="btn btn-primary" type="submit">Submit</button>
+    <NavLink class="btn btn-secondary" href=@($"/account/register?ReturnUrl={ReturnUrl}")>Register</NavLink>
+</form> *@
+@if (Schemes.Length > 0)
+{
+    <div class="container">
+        <p class="lead text-left">Sign in using one of these external providers:</p>
+
+        @foreach (var scheme in Schemes!.OrderBy(p => p.DisplayName))
+        {
+            <form @onsubmit="() => ExternalLogin(scheme.Name)" method="post" @formname="external-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="Provider" value="@scheme.Name" />
+                <button class="btn btn-lg btn-success m-1" type="submit">Connect using @scheme.DisplayName</button>
+            </form>
+        }
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public string ReturnUrl { get; set; } = String.Empty;
+
+    [SupplyParameterFromForm]
+    public User Model { get; set; } = new();
+
+    public bool RememberMe { get; set; } = false;
+
+    public string Error { get; set; } = "";
+
+    public AuthenticationScheme[] Schemes { get; set; } = [];
+
+    protected async override Task OnInitializedAsync()
+    {
+        Schemes = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToArray();
+        ReturnUrl ??= "/";
+    }
+
+    private async void Submit()
+    {
+        try
+        {
+            var result = await signInManager.PasswordSignInAsync(Model.UserName!, Model.Password, false, false);
+            if (result.Succeeded)
+            {
+                Navigation.NavigateFromPost(ReturnUrl);
+                return;
+            }
+            throw new Exception("Unable to login. ");
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+
+    }
+
+    public async Task ExternalLogin(string provider)
+    {
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, navigationManager.BaseUri);
+        await Navigation.Challenge(provider, properties);
+    }
+}
